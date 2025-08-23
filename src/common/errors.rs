@@ -37,12 +37,14 @@ impl MonoError {
         }
     }
 
-    /// 打印错误信息并终止程序
-    /// 
-    /// 注意：该方法使用 panic! 宏，会导致程序崩溃。
-    /// 建议改为返回错误或使用更温和的错误处理方式。
+    /// 打印错误信息
+    ///
+    /// 之前该方法通过 panic! 终止程序，这会在仅需要输出错误时导致
+    /// 整个应用崩溃。改为输出到标准错误，调用者可自行决定后续处理。
     pub fn print(&self) {
-        panic!("{}:{}", self.code, self.error.as_ref().unwrap());
+        if let Some(err) = &self.error {
+            eprintln!("{}:{}", self.code, err);
+        }
     }
 
     /// 创建未知子命令错误
@@ -202,9 +204,19 @@ mod tests {
         let error1 = MonoError::_with_message("错误1");
         let error2 = MonoError::_unknown_subcommand("cmd");
         let error3 = MonoError::from(anyhow!("错误3"));
-        
+
         assert_eq!(error1.code, 0);
         assert_eq!(error2.code, 1);
         assert_eq!(error3.code, 101);
+    }
+
+    /// 确保 `print` 方法不会触发 panic
+    #[test]
+    fn test_print_does_not_panic() {
+        let error = MonoError::_with_message("打印测试");
+        let result = std::panic::catch_unwind(|| {
+            error.print();
+        });
+        assert!(result.is_ok());
     }
 }
